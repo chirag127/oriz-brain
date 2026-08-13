@@ -1,0 +1,7 @@
+vault/
+.env
+*.egg-info/
+__pycache__/
+.venv/
+dist/
+.coverage

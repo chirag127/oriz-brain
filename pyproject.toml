@@ -1,0 +1,52 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "oriz-brain"
+version = "0.1.0"
+description = "Ambient personal-AI OS — thin orchestrator consolidating the fleet's ingest/memory/reason/notify pieces"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.13"
+authors = [{ name = "Chirag Singhal", email = "chirag@oriz.in" }]
+keywords = ["ambient", "ai", "orchestrator", "personal", "brain"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    "httpx>=0.28.0",
+    "structlog>=24.4.0",
+    "typer>=0.15.0",
+    "rich>=13.9.0",
+    "agent-forge @ git+https://github.com/chirag127/agent-forge.git",
+]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=6.0.0",
+]
+
+[project.scripts]
+brain = "oriz_brain.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["oriz_brain"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "--tb=short -q"
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]

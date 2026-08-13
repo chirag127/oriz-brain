@@ -1,0 +1,16 @@
+{
+  "timestamp": 1786344983,
+  "status": "Success",
+  "body": {
+    "closedLoansCount": 21,
+    "activeLoansCount": 130,
+    "totalLoans": 151,
+    "totalInvestmentOnClosedLoan": 82615,
+    "totalInvestmentActiveOnLoan": 521885,
+    "totalInvestment": 604500,
+    "avgIntRateOnClosedLoan": "145.17",
+    "avgIntRateActiveOnLoan": "105.68",
+    "avgIntRate": "111.26",
+    "sumOfIntRateAllLoan": "111.08"
+  }
+}

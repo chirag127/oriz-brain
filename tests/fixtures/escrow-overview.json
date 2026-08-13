@@ -1,0 +1,13 @@
+{
+  "timestamp": 1786297765,
+  "status": "Success",
+  "body": {
+    "totalCreditByYou": 614500,
+    "totalCreditByEMI": 0,
+    "totalCredit": 614500,
+    "totalDebitByYou": 0,
+    "totalAmountInvested": 604500,
+    "totalDebit": 604500,
+    "totalWithdrawPending": 0
+  }
+}
