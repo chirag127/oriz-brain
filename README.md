@@ -1,23 +1,49 @@
 # oriz-brain — ChiragOS ambient personal-AI orchestrator
 
-Live URL: https://github.com/chirag127/oriz-brain
+> A thin ambient personal-AI orchestrator that **imports** existing fleet pieces — never rewrites them. Ingest → store → reason → decide → notify.
 
-[![MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/chirag127/oriz-brain?style=social)](https://github.com/chirag127/oriz-brain/stargazers)
+[![Last commit](https://img.shields.io/github/last-commit/chirag127/oriz-brain)](https://github.com/chirag127/oriz-brain/commits)
+[![Python 3.13+](https://img.shields.io/badge/python-3.13%2B-blue.svg)](https://www.python.org/)
 
-Thin ambient-brain that **imports** Chirag's existing fleet pieces — never rewrites or deletes them.
-Pipeline: **ingest → store(decision log) → reason(agent-forge) → decide → notify**.
+**Repo:** <https://github.com/chirag127/oriz-brain> · **Landing:** <https://chirag127.github.io/oriz-brain/>
+
+oriz-brain is a thin ambient-brain that runs a single reasoning cycle over data your other fleet repos already commit — P2P portfolio JSON, market sentiment, and more. It **imports** those pieces (agent-forge for reasoning, sibling repos for data) rather than duplicating them, writes an append-only markdown decision log, tracks its own predictions for calibration, and notifies you when something matters.
+
+Keyless LLM (kilo.ai → pollinations failover), git-friendly markdown storage under `vault/`, no extra services to run.
+
+⭐ If this is useful, please [star the repo](https://github.com/chirag127/oriz-brain/stargazers) — it helps others find it.
+
+## How it works
+
+```mermaid
+flowchart LR
+    subgraph SRC [sources/ — adapters read committed data from sibling repos]
+      I2I[I2iAdapter<br/>i2i-portfolio-data]
+      MMI[MmiAdapter<br/>oriz-mmi / Tickertape]
+    end
+    SRC --> P[pipeline.reason<br/>LLMClient · keyless]
+    P --> DL[decision_log<br/>vault/*.md]
+    P --> PR[predictions<br/>vault/predictions/]
+    P --> N{notify}
+    N --> C[Console]
+    N --> T[Telegram stub<br/>env-backed]
+```
 
 ## Architecture — import, don't rewrite
 
 ```
-oriz-brain
-├── sources/         # pluggable adapters that READ existing repos' committed data
-│   ├── i2i.py       # → repos/own/i2i-portfolio-data/raw/api/  (P2P portfolio JSON)
-│   └── mmi.py       # → repos/own/oriz-mmi committed state OR keyless Tickertape API
-├── pipeline.py      # reason() calls LLMClient (same kilo→pollinations chain as agent-forge)
-├── decision_log.py  # append-only markdown vault/ (git-friendly, no extra service needed)
-├── notify/          # ConsoleNotifier (default) + TelegramNotifier stub (env-backed)
-└── cli.py           # brain run | brain log | brain sources
+oriz_brain/
+├── sources/            # pluggable adapters that READ existing repos' committed data
+│   ├── i2i.py          # → repos/own/i2i-portfolio-data/raw/api/  (P2P portfolio JSON)
+│   └── mmi.py          # → repos/own/oriz-mmi committed state OR keyless Tickertape API
+├── pipeline.py         # reason() calls LLMClient (same kilo→pollinations chain as agent-forge)
+├── llm.py              # keyless LLMClient (kilo.ai → pollinations failover)
+├── decision_log.py     # append-only markdown vault/ (git-friendly, no extra service needed)
+├── predictions.py      # prediction tracker + calibration scoring
+├── notify/             # ConsoleNotifier (default) + TelegramNotifier stub (env-backed)
+└── cli.py              # brain run | brain log | brain sources | brain predict | brain score
 ```
 
 ### Repos consolidated (imported, not copied or deleted)
@@ -33,13 +59,31 @@ oriz-brain
 
 **Nothing was copied. Nothing was deleted. Each source repo keeps its own automations running.**
 
+## Features
+
+- **Import-first architecture** — reuses fleet reasoning + data instead of rewriting.
+- **Keyless LLM** — kilo.ai → pollinations failover, degrades gracefully to `[LLM unavailable]`.
+- **Append-only decision log** — git-friendly markdown, one file per day.
+- **Prediction tracker** — record predictions, resolve them, get calibration stats (Brier, over/under-confidence).
+- **Pluggable sources** — adapters read committed data from sibling repos; stub slots for future ones.
+- **Notifiers** — console (always on) + Telegram (env-backed stub).
+
+## Tech stack
+
+- **Python 3.13+**, packaged with **hatchling**
+- [`httpx`](https://www.python-httpx.org/) — async HTTP for LLM/data fetch
+- [`structlog`](https://www.structlog.org/) — structured logging
+- [`typer`](https://typer.tiangolo.com/) — CLI
+- [`rich`](https://rich.readthedocs.io/) — console rendering
+- [`agent-forge`](https://github.com/chirag127/agent-forge) — reasoning engine (git dependency)
+
 ## LLM
 
 Keyless. `LLMClient` tries:
 1. `kilo.ai` (free gateway, no key needed)
 2. `text.pollinations.ai/openai` with `Referer: https://oriz.in`
 
-Degrades gracefully — returns `[LLM unavailable]` string if both fail; cycle still logs decisions.
+Degrades gracefully — returns `[LLM unavailable]` if both fail; the cycle still logs decisions.
 
 ## Decision journal + prediction tracker
 
@@ -90,8 +134,8 @@ Optional richer backend: [mdv-mcp](https://github.com/chirag127/mdv-mcp) can ind
 ## Notify
 
 - **Console** — always on, Rich-formatted panel for `matters` decisions.
-- **Telegram** — set `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` (fleet already has `oriz127_bot`). No hardcoded secrets.
-- **ntfy** — add `NtfyNotifier` stub; send to `https://ntfy.sh/<topic>` — no key needed for public topics.
+- **Telegram** — set `TELEGRAM_BOT_TOKEN` + `TELEGRAM_CHAT_ID` (fleet already has `oriz127_bot`). No hardcoded secrets — the notifier no-ops if the env vars are unset.
+- **ntfy** — planned `NtfyNotifier` stub; send to `https://ntfy.sh/<topic>` — no key needed for public topics.
 
 ## Install
 
@@ -99,23 +143,37 @@ Optional richer backend: [mdv-mcp](https://github.com/chirag127/mdv-mcp) can ind
 # requires Python 3.13 + uv
 cd repos/own/oriz-brain
 uv sync
+
+# or with pip
+pip install -e .
 ```
 
 ## Usage
 
 ```bash
 # one ambient cycle
-uv run brain run
+brain run
 
 # dry run (no Telegram, console-only)
-uv run brain run --dry-run
+brain run --dry-run
 
 # show recent decision log
-uv run brain log
+brain log
 
 # list adapters
-uv run brain sources
+brain sources
 ```
+
+(Under uv, prefix with `uv run`, e.g. `uv run brain run`.)
+
+## Configuration
+
+| Env var | Purpose |
+|---|---|
+| `TELEGRAM_BOT_TOKEN` | Bot token for the optional Telegram notifier (notifier no-ops if unset) |
+| `TELEGRAM_CHAT_ID` | Target chat ID for the optional Telegram notifier |
+
+No LLM keys required — the LLM path is keyless.
 
 ## Tests
 
@@ -123,11 +181,25 @@ uv run brain sources
 uv run pytest
 ```
 
-## Roadmap (gaps from fleet inventory)
+## Part of the oriz family
+
+oriz-brain is one of ~80 [oriz](https://blog.oriz.in) projects. It's a personal orchestrator that **runs locally — no server, no hosting**.
+
+## Contributing
+
+Issues and PRs welcome. Conventional commits are the changelog.
+
+## Status / roadmap
+
+**Alpha** — a personal orchestrator, evolving. Planned:
 
 - **Unified dashboard** — single web view across i2i + MMI + IPO GMP + life-cli reminders
-- **Event triggers** — run cycle on git push to i2i-portfolio-data or oriz-mmi (GitHub Actions webhook)
-- **Cross-repo coordination** — agent-forge Orchestrator tasks that span multiple source adapters
+- **Event triggers** — run the cycle on git push to i2i-portfolio-data or oriz-mmi (GitHub Actions webhook)
+- **Cross-repo coordination** — agent-forge Orchestrator tasks spanning multiple source adapters
 - **ntfy notifier** — keyless push to ntfy.sh for mobile alerts
-- **life-cli adapter** — read email/reminders from life-cli once it exposes a Python API
-- **oriz-ipo adapter** — read committed IPO GMP JSON from oriz-ipo repo
+- **life-cli adapter** — read email/reminders once life-cli exposes a Python API
+- **oriz-ipo adapter** — read committed IPO GMP JSON from oriz-ipo
+
+## License
+
+MIT © 2026 Chirag Singhal · chirag@oriz.in — see [LICENSE](LICENSE).
